@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,12 +27,16 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int PERMISSIONS_REQUEST_READ_CONTACTS = 100;
     private static final int CREATE_FILE_REQUEST_CODE = 102;
     private TextView contactsTextView;
+    private ListView contactsListView;
+    private List<ContactItem> contactsList = new ArrayList<>();
     CustomLoading loading;
     private String jsonDataToSave;
 
@@ -41,14 +46,24 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         contactsTextView = findViewById(R.id.textView);
+        contactsListView = findViewById(R.id.contactsListView);
         loading = new CustomLoading(this);
+
         Button getContactsButton = findViewById(R.id.start);
         getContactsButton.setOnClickListener(v -> {
-            contactsTextView.setVisibility(View.VISIBLE);
             if (hasContactsPermission()) {
                 getContactsAsJson();
             } else {
                 requestContactsPermission();
+            }
+        });
+
+        Button saveButton = findViewById(R.id.saveButton);
+        saveButton.setOnClickListener(v -> {
+            if (jsonDataToSave != null && !jsonDataToSave.isEmpty()) {
+                createFile();
+            } else {
+                Toast.makeText(this, "No contacts data to save", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -87,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
         protected void onPreExecute() {
             super.onPreExecute();
             loading.load();
+            contactsList.clear();
         }
 
         @Override
@@ -117,6 +133,10 @@ public class MainActivity extends AppCompatActivity {
                         int hasPhone = Integer.parseInt(cursor.getString(
                                 cursor.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)));
 
+                        // Create a ContactItem object to add to our list
+                        ContactItem contactItem = new ContactItem();
+                        contactItem.setName(displayName);
+
                         if (hasPhone > 0) {
                             Cursor phoneCursor = contentResolver.query(
                                     ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
@@ -127,17 +147,20 @@ public class MainActivity extends AppCompatActivity {
                             );
 
                             JSONArray phoneNumbersArray = new JSONArray();
+                            List<String> phoneList = new ArrayList<>();
 
                             if (phoneCursor != null) {
                                 while (phoneCursor.moveToNext()) {
                                     String phoneNumber = phoneCursor.getString(
                                             phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
                                     phoneNumbersArray.put(phoneNumber);
+                                    phoneList.add(phoneNumber);
                                 }
                                 phoneCursor.close();
                             }
 
                             contactJson.put("phoneNumbers", phoneNumbersArray);
+                            contactItem.setPhoneNumbers(phoneList);
                         }
 
                         Cursor emailCursor = contentResolver.query(
@@ -149,17 +172,25 @@ public class MainActivity extends AppCompatActivity {
                         );
 
                         JSONArray emailArray = new JSONArray();
+                        List<String> emailList = new ArrayList<>();
 
                         if (emailCursor != null) {
                             while (emailCursor.moveToNext()) {
                                 String email = emailCursor.getString(
                                         emailCursor.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS));
                                 emailArray.put(email);
+                                emailList.add(email);
                             }
                             emailCursor.close();
                         }
 
                         contactJson.put("emails", emailArray);
+                        contactItem.setEmails(emailList);
+
+                        // Add to our contacts list for the adapter
+                        contactsList.add(contactItem);
+
+                        // Add to JSON array for saving
                         contactsJsonArray.put(contactJson);
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -176,16 +207,32 @@ public class MainActivity extends AppCompatActivity {
             super.onPostExecute(contactsJsonArray);
             try {
                 jsonDataToSave = contactsJsonArray.toString(2);
-                createFile();
+
+                // Set up the ListView with our custom adapter
+                ContactsAdapter adapter = new ContactsAdapter(MainActivity.this, contactsList);
+                contactsListView.setAdapter(adapter);
+
+                // Show the ListView and hide loading
+                contactsListView.setVisibility(View.VISIBLE);
+                contactsTextView.setVisibility(View.GONE);
+                loading.dismisss();
+
+                // Update status
+                Toast.makeText(MainActivity.this,
+                        "Loaded " + contactsList.size() + " contacts",
+                        Toast.LENGTH_SHORT).show();
+
             } catch (JSONException e) {
                 e.printStackTrace();
                 loading.dismisss();
+                contactsTextView.setVisibility(View.VISIBLE);
                 contactsTextView.setText("Error creating JSON: " + e.getMessage());
             }
         }
     }
 
     private void createFile() {
+        loading.load();
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("application/json");
@@ -210,11 +257,9 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     writeJsonToUri(uri, jsonDataToSave);
                     loading.dismisss();
-                    contactsTextView.setText("Contacts saved successfully");
                     Toast.makeText(this, "Contacts saved successfully", Toast.LENGTH_LONG).show();
                 } catch (IOException e) {
                     loading.dismisss();
-                    contactsTextView.setText("Error saving contacts: " + e.getMessage());
                     Toast.makeText(this, "Error saving contacts: " + e.getMessage(),
                             Toast.LENGTH_SHORT).show();
                 }
