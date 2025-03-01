@@ -1,10 +1,12 @@
-package com.chari6268.mycontacts;
+package com.chari6268.mycontacts.Task1;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.InsetDrawable;
+
+import com.chari6268.mycontacts.R;
 
 import java.util.Objects;
 

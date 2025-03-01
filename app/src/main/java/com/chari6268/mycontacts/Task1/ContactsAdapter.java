@@ -1,4 +1,4 @@
-package com.chari6268.mycontacts;
+package com.chari6268.mycontacts.Task1;
 
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -9,6 +9,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.chari6268.mycontacts.R;
 
 import java.util.List;
 

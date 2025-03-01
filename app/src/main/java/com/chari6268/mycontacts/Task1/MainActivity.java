@@ -1,4 +1,4 @@
-package com.chari6268.mycontacts;
+package com.chari6268.mycontacts.Task1;
 
 import android.Manifest;
 import android.content.ContentResolver;
@@ -20,6 +20,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+
+import com.chari6268.mycontacts.R;
 
 import org.json.JSONArray;
 import org.json.JSONException;
